@@ -6,7 +6,6 @@ Linux Mint target machine — it can't be run or visually tested from here.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import gi
@@ -302,4 +301,7 @@ class ReviewApp(Gtk.Application):
 
 def run(conn, config: Config) -> int:
     app = ReviewApp(conn, config)
-    return app.run(sys.argv)
+    # Deliberately not sys.argv: that still holds our own CLI's leftover
+    # positional args (e.g. "review"), which GApplication would otherwise
+    # try to interpret as files to open.
+    return app.run(None)
