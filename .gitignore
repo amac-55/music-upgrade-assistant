@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# runtime data — real library paths, DB, and QuodLibet export are per-machine
+*.db
+/config.toml

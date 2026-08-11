@@ -1,0 +1,22 @@
+# Copy to ~/.config/music-upgrade-assistant/config.toml and edit the paths
+# for your machine. Everything under [matching] has a sensible default and
+# can be left alone to start.
+
+[paths]
+music_root = "~/_Music"
+new_music_dir = "~/_Music/Music - New"
+backup_dir = "~/_Music/.replaced-backup"
+db_path = "~/.local/share/music-upgrade-assistant/library.db"
+scope_export_path = "~/.local/share/music-upgrade-assistant/quodlibet-scope.json"
+
+[matching]
+# A candidate must be FLAC, or MP3 at/above this bitrate, to be proposed.
+min_bitrate_kbps = 320
+upgrade_formats = ["flac", "mp3"]
+# Confidence score (0-100) at or above which a matched row starts pre-checked
+# in the review UI.
+auto_check_confidence = 90.0
+# rapidfuzz token score (0-100) required for a fuzzy tag/filename match.
+fuzzy_match_threshold = 85.0
+# Allowed difference in track length between old and candidate, in seconds.
+duration_tolerance_sec = 3.0
