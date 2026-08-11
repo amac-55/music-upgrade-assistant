@@ -11,12 +11,17 @@ from pathlib import Path
 
 import mutagen
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import APIC, ID3, ID3NoHeaderError
+from mutagen.id3 import APIC, ID3, ID3NoHeaderError, POPM
 
 SUPPORTED_EXTENSIONS = (".mp3", ".flac")
 
 # Common tag fields we care about, as (EasyID3/VComment key) -> AudioInfo field.
 _TAG_FIELDS = ("artist", "title", "album", "tracknumber", "genre", "date")
+
+# QuodLibet's own default save email (quodlibet.const.EMAIL) — the key it
+# reads/writes rating and play count under, as a POPM frame for ID3 or
+# "rating:<email>" / "playcount:<email>" Vorbis comments for FLAC.
+_QL_RATING_EMAIL = "quodlibet@lists.sacredchao.net"
 
 
 @dataclass
@@ -89,24 +94,79 @@ def _read_cover_art(path: Path) -> tuple[bytes, str] | None:
     return None
 
 
+def _read_rating(source: Path) -> tuple[float, int] | None:
+    """Read QuodLibet's rating/play count from source, if it wrote one.
+
+    Returns (rating 0.0-1.0, playcount) or None if source has no QuodLibet
+    rating frame/comment under _QL_RATING_EMAIL.
+    """
+    ext = source.suffix.lower()
+    if ext == ".mp3":
+        try:
+            id3 = ID3(source)
+        except ID3NoHeaderError:
+            return None
+        frame = id3.get(f"POPM:{_QL_RATING_EMAIL}")
+        if frame is None:
+            return None
+        return frame.rating / 255.0, frame.count
+    if ext == ".flac":
+        flac = FLAC(source)
+        rating = flac.get(f"rating:{_QL_RATING_EMAIL}")
+        if not rating:
+            return None
+        playcount = flac.get(f"playcount:{_QL_RATING_EMAIL}")
+        return float(rating[0]), int(playcount[0]) if playcount else 0
+    return None
+
+
 def copy_tags(source: Path, dest: Path) -> None:
     """Strip dest's existing tags and replace them with source's.
 
-    Copies the common fields in _TAG_FIELDS plus embedded cover art, if any.
-    Works across format (mp3 -> flac or flac -> mp3) since it reads via the
-    format-agnostic EasyID3/VComment views rather than raw frames.
+    Same-format copies (mp3 -> mp3, flac -> flac) copy every frame/comment
+    wholesale for full fidelity — comments, composer/conductor, and
+    QuodLibet's own POPM rating/playcount all carry over untouched.
+
+    Cross-format copies (mp3 -> flac) can't carry raw frames across, so they
+    fall back to the common fields in _TAG_FIELDS plus embedded cover art,
+    with QuodLibet's rating/playcount explicitly translated to the
+    destination format's convention (POPM for ID3, rating:/playcount:
+    comments for Vorbis) since neither is a _TAG_FIELDS entry.
     """
+    source_ext = source.suffix.lower()
+    dest_ext = dest.suffix.lower()
+    rating = _read_rating(source)
+
+    if source_ext == ".mp3" and dest_ext == ".mp3":
+        try:
+            src_id3 = ID3(source)
+        except ID3NoHeaderError:
+            src_id3 = ID3()
+        src_id3.save(dest)
+        return
+    if source_ext == ".flac" and dest_ext == ".flac":
+        src_flac = FLAC(source)
+        dest_flac = FLAC(dest)
+        dest_flac.delete()
+        dest_flac.clear_pictures()
+        for key, values in src_flac.items():
+            dest_flac[key] = values
+        for pic in src_flac.pictures:
+            dest_flac.add_picture(pic)
+        dest_flac.save()
+        return
+
     src_audio = mutagen.File(source, easy=True)
     if src_audio is None:
         raise ValueError(f"Could not read tags from {source}")
     src_values = {field: src_audio[field] for field in _TAG_FIELDS if field in src_audio}
     cover = _read_cover_art(source)
 
-    dest_ext = dest.suffix.lower()
     if dest_ext == ".mp3":
         dest_audio = mutagen.File(dest, easy=True)
         dest_audio.delete()
-        dest_audio.add_tags()
+        if dest_audio.tags is None:
+            dest_audio.add_tags()
         for field, values in src_values.items():
             dest_audio[field] = values
         dest_audio.save()
@@ -114,6 +174,11 @@ def copy_tags(source: Path, dest: Path) -> None:
             data, mime = cover
             id3 = ID3(dest)
             id3.add(APIC(encoding=3, mime=mime, type=3, desc="Cover", data=data))
+            id3.save(dest)
+        if rating:
+            rating_float, playcount = rating
+            id3 = ID3(dest)
+            id3.add(POPM(email=_QL_RATING_EMAIL, rating=round(255 * rating_float), count=playcount))
             id3.save(dest)
     elif dest_ext == ".flac":
         flac = FLAC(dest)
@@ -128,6 +193,11 @@ def copy_tags(source: Path, dest: Path) -> None:
             pic.mime = mime
             pic.type = 3
             flac.add_picture(pic)
+        if rating:
+            rating_float, playcount = rating
+            flac[f"rating:{_QL_RATING_EMAIL}"] = str(rating_float)
+            if playcount:
+                flac[f"playcount:{_QL_RATING_EMAIL}"] = str(playcount)
         flac.save()
     else:
         raise ValueError(f"Unsupported destination format: {dest}")

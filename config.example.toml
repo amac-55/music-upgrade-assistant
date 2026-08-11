@@ -5,7 +5,10 @@
 [paths]
 music_root = "~/_Music"
 new_music_dir = "~/_Music/Music - New"
-backup_dir = "~/_Music/.replaced-backup"
+# Keep this OUTSIDE music_root: most library scanners (QuodLibet included)
+# don't skip hidden subdirectories, so a backup_dir nested inside music_root
+# gets re-indexed as a duplicate library entry the moment a file lands in it.
+backup_dir = "~/_Music-backup"
 db_path = "~/.local/share/music-upgrade-assistant/library.db"
 scope_export_path = "~/.local/share/music-upgrade-assistant/quodlibet-scope.json"
 
