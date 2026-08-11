@@ -67,3 +67,7 @@ music-upgrade review  # open the batch review UI
 pip install -e ".[dev]"
 python -m pytest -q
 ```
+
+## License
+
+[MIT](LICENSE)
