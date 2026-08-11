@@ -28,6 +28,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
     result = db.sync_tracks_from_export(
         conn,
         config.scope_export_path,
+        scope_ratings=config.scope_ratings,
         upgrade_formats=config.upgrade_formats,
         min_bitrate_kbps=config.min_bitrate_kbps,
     )

@@ -22,6 +22,11 @@ class Config:
     auto_check_confidence: float = 90.0
     fuzzy_match_threshold: float = 85.0
     duration_tolerance_sec: float = 3.0
+    # QuodLibet's rating float for "3 stars" / "4 stars" depends on the
+    # number-of-stars setting in QuodLibet's own preferences — it's not
+    # always the 4-star default (0.75, 1.0). See config.example.toml for how
+    # to check your actual values.
+    scope_ratings: tuple[float, ...] = (0.75, 1.0)
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Config":
@@ -51,4 +56,5 @@ class Config:
             auto_check_confidence=matching.get("auto_check_confidence", 90.0),
             fuzzy_match_threshold=matching.get("fuzzy_match_threshold", 85.0),
             duration_tolerance_sec=matching.get("duration_tolerance_sec", 3.0),
+            scope_ratings=tuple(matching.get("scope_ratings", [0.75, 1.0])),
         )

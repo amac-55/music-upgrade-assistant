@@ -10,6 +10,17 @@ db_path = "~/.local/share/music-upgrade-assistant/library.db"
 scope_export_path = "~/.local/share/music-upgrade-assistant/quodlibet-scope.json"
 
 [matching]
+# 3/4-star rating, as QuodLibet's internal 0.0-1.0 float. This depends on
+# the number-of-stars setting in QuodLibet's own preferences, so it is NOT
+# always the 4-star default (0.75, 1.0) below — a 5-star scale, for
+# instance, uses 0.6/0.8 for 3/4 stars. If sync finds 0 tracks despite
+# having rated ones, check what values actually show up in your export:
+#   python3 -c "
+#   import json, collections
+#   data = json.load(open('/path/to/your/scope_export_path'))
+#   print(collections.Counter(round(d['rating'], 4) for d in data if d['rating'] is not None).most_common(10))
+#   "
+scope_ratings = [0.75, 1.0]
 # A candidate must be FLAC, or MP3 at/above this bitrate, to be proposed.
 min_bitrate_kbps = 320
 upgrade_formats = ["flac", "mp3"]
